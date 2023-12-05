@@ -82,19 +82,20 @@ class CourseMechanism:
         self.student_matching = student_matching
     
     """
+    Args:
+        preferences: new preference ordering from each student for each teacher
     Returns:
-        a dictionary mapping each student to old/new class based on changed preferences
+        initial directed graph to run TTC
     """
-    # Pseudocode
-    # Create a DiGraph of nodes(s_i, t_j) of students to matched class from studentDA
-    # Based on changed preferences, point student to their most preferred class now.
-    # Detect cycles and trade on the cycles (may need to randomly select for overlapping cycles)
-    # Output final matching
-    ## Use Networkx module to construct Digraph and find cycles
-    def generateDigraph(self):
+    def generateDigraph(self, preferences):
         G = nx.DiGraph()
         for student, teacher in self.student_matching.items():
             G.add_node((student, teacher))
+        for i, student in enumerate(preferences):
+            top_preference = student.pop(0)
+            src = self.findNode(G, i, 0)
+            dest = self.findNode(G, top_preference, 1)
+            G.add_edge(src, dest)
         return G
 
     """
@@ -102,6 +103,8 @@ class CourseMechanism:
         G: graph
         index: index of desired agent
         type: 0 if student, 1 if teacher
+    Returns:
+        node in G corresponding to desired agent
     """
     def findNode(self, G, index, type):
         for node in G.nodes():
@@ -109,6 +112,13 @@ class CourseMechanism:
                 return node
         return None
 
+    """
+    Args:
+        G: graph
+        preferences: updated preference orderings
+    Returns:
+        updated graph with traded nodes removed and edges redirected to next preferred
+    """
     def redirect(self, G, preferences):
         for node in G.nodes():
             while G.out_degree(node) == 0:
@@ -118,26 +128,30 @@ class CourseMechanism:
                     G.add_edge(node, dest)
         return G
 
+    """
+    Returns:
+        a dictionary mapping each student to old/new class based on changed preferences
+    """
     def TTC(self):
         new_matching = {i:-1 for i in range(len(self.student_matching))}
         done = False
-        G = self.generateDigraph()
         sorted_student_preferences = [self.sort_preferences([i for i in range(len(self.teacher_preferences))], preference) for preference in self.student_preferences]
-        for i, student in enumerate(sorted_student_preferences):
-            top_preference = student.pop(0)
-            src = self.findNode(G, i, 0)
-            dest = self.findNode(G, top_preference, 1)
-            G.add_edge(src, dest)
+        G = self.generateDigraph(sorted_student_preferences)
+        # Keep running TTC until all students have been matched
         while not done:
+            # Each node should point to exactly one other node
+            for node in G.nodes():
+                assert(G.out_degree(node) == 1)
             cycles_left = True
+            # Iterate through all cycles at current iteration and trade along each cycle
             while cycles_left:
                 try:
                     c = nx.find_cycle(G)
-                    # self-edge cycle
+                    # self-edge cycle, keep original matching
                     if len(c) == 1:
                         new_matching[c[0][0][0]] = c[0][0][1]
                         G.remove_node(c[0][0])
-                    # Multi-agent trading
+                    # Multi-agent trading, trade along cycle
                     else:
                         c = [src for src, _ in c]
                         for i in range(len(c) - 1):
@@ -147,6 +161,7 @@ class CourseMechanism:
                         G.remove_node(c[len(c) - 1])
                 except:
                     cycles_left = False
+            # Update graph after trades
             G = self.redirect(G, sorted_student_preferences)
             done = True
             for matching in new_matching.values():
