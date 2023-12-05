@@ -6,6 +6,7 @@ class CourseMechanism:
         self.teacher_preferences = {}
         self.student_preferences = {}
         self.student_matching = {}
+        self.var1 = 1
     """
     Args:
         n: number of students
@@ -14,8 +15,14 @@ class CourseMechanism:
         List of randomized preference values for each student/teacher for each teacher/student
     """
     def generate_preferences(self, n, m):
+        # Sample teacher preferences randomly
         self.teacher_preferences = [{i:np.random.uniform(0.0,10.0) for i in range(n)} for _ in range(m)]
-        self.student_preferences = [{j:np.random.uniform(0.0,10.0) for j in range(m)} for _ in range(n)]
+
+        # Sample student preferences from multivariate normal distribution
+        means = np.random.uniform(0.0,10.0,m)
+        cov = np.diag(np.array([self.var1] * m))
+        sample_prefs = np.random.multivariate_normal(means, cov)
+        self.student_preferences = [{j:sample_prefs[j] for j in range(m)} for _ in range(n)]
 
     """
     Args: 
