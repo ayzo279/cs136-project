@@ -302,7 +302,7 @@ def deviate_test(epochs = 100):
     dev_success = 0
 
     for _ in range(epochs):
-        test = CourseMechanism(100,10)
+        test = CourseMechanism(100,20)
 
         test.generate_preferences()
         student_prefs = test.student_preferences.copy()
@@ -335,6 +335,19 @@ def deviate_test(epochs = 100):
     print(f"Deviation: {dev_success/epochs}")
 
 
+def var_test(v1, v2, epochs=100):
+    success = 0
+    for _ in range(epochs):
+        test = CourseMechanism(100, 10, var1=v1, var2=v2)
+        test.generate_preferences()
+        test.studentDA(10)
+        test.resample_preferences(bump=True)
+        test.TTC()
+        success += test.prob_success()
+    return success / epochs
+
+
+
 def main():
     test = CourseMechanism(100, 10)
     test.generate_preferences()
@@ -355,7 +368,18 @@ if __name__ == "__main__":
     # main()
     # var1_test()
     # var2_test()
-    deviate_test()   
+    # deviate_test()
+
+    # Variance test for entire population
+    var1 = (1,10)
+    var2 = (1,10) 
+    print(f"v1={var1[0]}, v2={var2[0]}: {var_test(v1=var1[0], v2=var2[0])}")
+    print(f"v1={var1[1]}, v2={var2[0]}: {var_test(v1=var1[1], v2=var2[0])}")
+    print(f"v1={var1[0]}, v2={var2[1]}: {var_test(v1=var1[0], v2=var2[1])}")
+    print(f"v1={var1[1]}, v2={var2[1]}: {var_test(v1=var1[1], v2=var2[1])}")
+
+    # Variance test for an agent that deviates / does not deviate
+    # TODO
             
 
 
