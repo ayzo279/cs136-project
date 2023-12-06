@@ -1,11 +1,14 @@
 import numpy as np
 import networkx as nx
+import random
 
 class CourseMechanism:
     def __init__(self):
         self.teacher_preferences = {}
         self.student_preferences = {}
         self.student_matching = {}
+        self.TTCpref = {}
+        self.G = nx.DiGraph()
         self.var1 = 1
         self.var2 = 1
     """
@@ -54,8 +57,7 @@ class CourseMechanism:
 
     """
     Args:
-        students: list of ranked teacher preferences [[t_1, ..., t_m], ... ]
-        teachers: list of ranked student preferences [[s_1, ..., s_n], ...]
+        capacity: maximum number of students allowed to each class
     Returns:
         a dictionary mapping each student to their accepted class
     """
@@ -107,18 +109,30 @@ class CourseMechanism:
     Args:
         preferences: new preference ordering from each student for each teacher
     Returns:
-        initial directed graph to run TTC
+        Updated preferences
     """
     def generateDigraph(self, preferences):
-        G = nx.DiGraph()
+        # Add each DA match as a student,teacher node to TTC graph
         for student, teacher in self.student_matching.items():
-            G.add_node((student, teacher))
-        for i, student in enumerate(preferences):
-            top_preference = student.pop(0)
-            src = self.findNode(G, i, 0)
-            dest = self.findNode(G, top_preference, 1)
-            G.add_edge(src, dest)
-        return G
+            self.G.add_node((student, teacher))
+        # Check for any consistent matching (i.e, self-edge) after preference change and remove matchings from graph
+        for i, pref in enumerate(preferences):
+            # If DA matching is the most preferred, keep matching and remove relevant node
+            if self.student_matching[i] == pref[0]:
+                self.G.remove_node((i, pref[0]))
+        # Iterate through remaining nodes and create edge to target node
+        for node in self.G.nodes():
+            edged_added = False
+            while not edged_added:
+                top_preference = preferences[node[0]].pop(0)
+                dest = self.findNode(top_preference, 1)
+                if len(dest) != 0:
+                    edged_added = True
+                    random.shuffle(dest)
+                    self.TTCpref[node[0]] = dest
+                    popped = self.TTCpref[node[0]].pop(0)
+                    self.G.add_edge(node, popped)
+        return preferences
 
     """
     Args:
@@ -126,13 +140,14 @@ class CourseMechanism:
         index: index of desired agent
         type: 0 if student, 1 if teacher
     Returns:
-        node in G corresponding to desired agent
+        nodes in G corresponding to desired agent
     """
-    def findNode(self, G, index, type):
-        for node in G.nodes():
+    def findNode(self, index, type):
+        matches = []
+        for node in self.G.nodes():
             if node[type] == index:
-                return node
-        return None
+                matches.append(node)
+        return matches
 
     """
     Args:
@@ -141,67 +156,64 @@ class CourseMechanism:
     Returns:
         updated graph with traded nodes removed and edges redirected to next preferred
     """
-    def redirect(self, G, preferences):
-        for node in G.nodes():
-            while G.out_degree(node) == 0:
-                target = preferences[node[0]].pop(0)
-                dest = self.findNode(G, target, 1)
-                if dest is not None:
-                    G.add_edge(node, dest)
-        return G
+    def redirect(self, preferences):
+        for node in self.G.nodes():
+            if self.G.out_degree(node) == 0:
+                if len(self.TTCpref[node[0]]) != 0:
+                    edge_added = False
+                    while not edge_added:
+                        target = preferences[node[0]].pop(0)
+                        dest = self.findNode(target, 1)
+                        if len(dest) != 0:
+                            self.TTCpref[node[0]] = dest
+                            edge_added = True
+                popped = self.TTCpref[node[0]].pop(0)
+                self.G.add_edge(node, popped)
+        return preferences
 
     """
     Returns:
         a dictionary mapping each student to old/new class based on changed preferences
     """
     def TTC(self):
-        new_matching = {i:-1 for i in range(len(self.student_matching))}
         done = False
         sorted_student_preferences = [self.sort_preferences([i for i in range(len(self.teacher_preferences))], preference) for preference in self.student_preferences]
-        G = self.generateDigraph(sorted_student_preferences)
+        sorted_student_preferences = self.generateDigraph(sorted_student_preferences)
         # Keep running TTC until all students have been matched
         while not done:
+            for node in self.G.nodes():
+                assert(self.G.out_degree(node) == 1)
             # Each node should point to exactly one other node
-            for node in G.nodes():
-                assert(G.out_degree(node) == 1)
             cycles_left = True
             # Iterate through all cycles at current iteration and trade along each cycle
             while cycles_left:
                 try:
-                    c = nx.find_cycle(G)
-                    # self-edge cycle, keep original matching
-                    if len(c) == 1:
-                        new_matching[c[0][0][0]] = c[0][0][1]
-                        G.remove_node(c[0][0])
-                    # Multi-agent trading, trade along cycle
-                    else:
-                        c = [src for src, _ in c]
+                    cycles = list(nx.simple_cycles(self.G))
+                    for c in cycles:
                         for i in range(len(c) - 1):
-                            new_matching[c[i][0]] = c[i+1][1]
-                            G.remove_node(c[i])
-                        new_matching[c[len(c) -1][0]] = c[0][1]
-                        G.remove_node(c[len(c) - 1])
+                            self.student_matching[c[i][0]] = c[i+1][1]
+                            self.G.remove_node(c[i])
+                        self.student_matching[c[len(c) - 1][0]] = c[0][1]
+                        self.G.remove_node(c[len(c) - 1])
+                    sorted_student_preferences = self.redirect(sorted_student_preferences)
                 except:
+                    if nx.number_of_nodes(self.G) != 0:
+                        self.G.clear()
                     cycles_left = False
             # Update graph after trades
-            G = self.redirect(G, sorted_student_preferences)
-            done = True
-            for matching in new_matching.values():
-                if matching == -1:
-                    done = False
-        self.student_matching = new_matching
+            done = nx.number_of_nodes(self.G) == 0 
         return
 
 test = CourseMechanism()
+test.generate_preferences(100,15)
+test.studentDA(10)
 print("Running Student DA...")
-test.generate_preferences(3,3)
 print(test.student_preferences)
-test.studentDA(1)
 print(test.student_matching)
-print("Running TTC...")
-test.generate_preferences(3,3)
-print(test.student_preferences)
+test.generate_preferences(100,15)
 test.TTC()
+print("Running TTC...")
+print(test.student_preferences)
 print(test.student_matching)
 
 
