@@ -296,33 +296,44 @@ def var2_test(epochs=10):
     plt.ylabel("Probability that student gets their favorite class")
     plt.show()
     
-def deviate_test(epochs = 10):
-    prob_success = []
-    success = 0
+
+def deviate_test(epochs = 100):
+    nodev_success = 0
+    dev_success = 0
+
     for _ in range(epochs):
         test = CourseMechanism(100,10)
+
         test.generate_preferences()
+        student_prefs = test.student_preferences.copy()
+        teacher_prefs = test.teacher_preferences.copy()
+
         test.studentDA(10, deviate=False)
-        test.resample_preferences(bump=True)
-        test.TTC()
-        success += test.prob_success(single=True)
-    prob_success.append(success / epochs)
-    print(prob_success)
-    prob_success = []
-    success = 0
-    for _ in range(epochs):
-        test = CourseMechanism(100,10)
-        test.generate_preferences()
+        nodev_matching = test.student_matching.copy()
+
+        test.student_preferences = student_prefs
+        test.teacher_preferences = teacher_prefs
+        test.student_matching = {}
         test.studentDA(10, deviate=True)
+        dev_matching = test.student_matching
+
+        test.student_matching = nodev_matching
+        test.student_preferences = student_prefs
+        test.teacher_preferences = teacher_prefs
         test.resample_preferences(bump=True)
         test.TTC()
-        success += test.prob_success(single=True)
-    prob_success.append(success / epochs)
-    print(prob_success)
-    # plt.plot(, prob_success)
-    # plt.xlabel("var2")
-    # plt.ylabel("Probability that student gets their favorite class")
-    # plt.show()
+        nodev_success += test.prob_success(single=True)
+
+        test.student_matching = dev_matching
+        test.student_preferences = student_prefs
+        test.teacher_preferences = teacher_prefs
+        test.resample_preferences(bump=True)
+        test.TTC()
+        dev_success += test.prob_success(single=True)
+    
+    print(f"No deviation: {nodev_success/epochs}")
+    print(f"Deviation: {dev_success/epochs}")
+
 
 def main():
     test = CourseMechanism(100, 10)
