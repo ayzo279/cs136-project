@@ -188,14 +188,17 @@ class CourseMechanism:
             # Iterate through all cycles at current iteration and trade along each cycle
             while cycles_left:
                 try:
-                    cycles = list(nx.simple_cycles(self.G))
-                    for c in cycles:
-                        for i in range(len(c) - 1):
-                            self.student_matching[c[i][0]] = c[i+1][1]
-                            self.G.remove_node(c[i])
-                        self.student_matching[c[len(c) - 1][0]] = c[0][1]
-                        self.G.remove_node(c[len(c) - 1])
-                    sorted_student_preferences = self.redirect(sorted_student_preferences)
+                    if nx.number_of_nodes(self.G) != 0:
+                        cycles = list(nx.simple_cycles(self.G))
+                        for c in cycles:
+                            for i in range(len(c) - 1):
+                                self.student_matching[c[i][0]] = c[i+1][1]
+                                self.G.remove_node(c[i])
+                            self.student_matching[c[len(c) - 1][0]] = c[0][1]
+                            self.G.remove_node(c[len(c) - 1])
+                        sorted_student_preferences = self.redirect(sorted_student_preferences)
+                    else:
+                        cycles_left = False
                 except:
                     if nx.number_of_nodes(self.G) != 0:
                         self.G.clear()
@@ -205,15 +208,15 @@ class CourseMechanism:
         return
 
 test = CourseMechanism()
-test.generate_preferences(100,15)
+test.generate_preferences(50,100)
 test.studentDA(10)
 print("Running Student DA...")
-print(test.student_preferences)
+# print(test.student_preferences)
 print(test.student_matching)
-test.generate_preferences(100,15)
+test.resample_preferences(50,100)
 test.TTC()
 print("Running TTC...")
-print(test.student_preferences)
+# print(test.student_preferences)
 print(test.student_matching)
 
 
