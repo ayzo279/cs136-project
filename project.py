@@ -26,7 +26,6 @@ class CourseMechanism:
     def generate_preferences(self):
         # Sample teacher preferences randomly
         self.teacher_preferences = [{i:np.random.uniform(0.0,10.0) for i in range(self.n)} for _ in range(self.m)]
-
         # Sample student preferences from multivariate normal distribution
         means = np.random.uniform(0.0,10.0,self.m)
         cov = np.diag(np.array([self.var1] * self.m))
@@ -44,11 +43,10 @@ class CourseMechanism:
         for i, student in enumerate(self.student_preferences):
             means = np.array(list(student.values()))
             cov = np.diag(np.array([self.var2] * self.m))
-            for _ in range(self.n):
-                sample_prefs = np.random.multivariate_normal(means, cov)
-                self.student_preferences[i] = {j:sample_prefs[j] for j in range(self.m)}
-                if bump:
-                    self.student_preferences[i][0] += 10
+            sample_prefs = np.random.multivariate_normal(means, cov)
+            self.student_preferences[i] = {j:sample_prefs[j] for j in range(self.m)}
+            if bump and i > 50:
+                self.student_preferences[i][0] += 10
 
     """
     Args: 
@@ -79,14 +77,21 @@ class CourseMechanism:
     Returns:
         The probability that a student receives their most preferred matching
     """
-    def prob_success(self):
+    def prob_success(self, single=False):
         successful = 0
-        for i, student in enumerate(self.student_preferences):
-            full_preference = np.array(list(student.values()))
+        if not single:
+            for i, student in enumerate(self.student_preferences):
+                full_preference = np.array(list(student.values()))
+                max_preference = np.argmax(full_preference)
+                if max_preference == self.student_matching[i]:
+                    successful += 1
+            return successful / self.n
+        if single:
+            full_preference = np.array(list(self.student_preferences[0].values()))
             max_preference = np.argmax(full_preference)
-            if max_preference == self.student_matching[i]:
+            if max_preference == self.student_matching[0]:
                 successful += 1
-        return successful / self.n
+            return successful
 
     """
     Args:
@@ -94,18 +99,26 @@ class CourseMechanism:
     Returns:
         a dictionary mapping each student to their accepted class
     """
-    def studentDA(self, capacity):
-        students = [self.sort_preferences([i for i in range(len(self.teacher_preferences))], preference) for preference in self.student_preferences]
-        teacher_matching = {i:[] for i in range(len(self.teacher_preferences))}
-        student_matching = {j:-1 for j in range(len(students))} # -1 implies unmatched
-        at_capacity = False
+    def studentDA(self, capacity, deviate=False):
+        students = [self.sort_preferences([i for i in range(self.m)], preference) for preference in self.student_preferences]
+        assert(len(students[i]) == self.m for i in range(self.n))
+        if deviate:
+            # Move class 0 to the top of student 0's preference ordering, pushing everything else down
+            students[0].remove(0)
+            students[0].insert(0, 0)
+        teacher_matching = {i:[] for i in range(self.m)}
+        student_matching = {j:-1 for j in range(self.n)} # -1 implies unmatched
         exhausted = False
         all_matched = False
-        while not at_capacity and not exhausted and not all_matched:
+        condition = True
+        while condition:
+            for i in range(self.m):
+                assert(len(teacher_matching) <= capacity)
             to_check = {} # Dict of teachers to check for each n student, -1 implies no proposal was made this round
             # Make proposals for unmatched students
             for i, ranking in enumerate(students):
-                if student_matching[i] == -1:
+                # If student is currently matched and still has proposals left
+                if student_matching[i] == -1 and len(ranking) > 0:
                     proposal = ranking.pop(0)
                     to_check[i] = proposal
             # Iterate and evaluate through each proposal
@@ -114,27 +127,31 @@ class CourseMechanism:
                 if len(teacher_matching[teacher]) < capacity: 
                     teacher_matching[teacher].append(student)
                     student_matching[student] = teacher 
-                    self.sort_preferences(teacher_matching[teacher], self.teacher_preferences[teacher])
+                    teacher_matching[teacher] = self.sort_preferences(teacher_matching[teacher], self.teacher_preferences[teacher])
+                # If at capacity, swap with last student if desirable for teacher
                 else:
-                    if self.teacher_preferences[teacher][teacher_matching[teacher][-1]] < self.teacher_preferences[teacher][student]:
-                        student_matching[teacher_matching[teacher][-1]] = -1 # Unmatch student to be swapped out
+                    last_student = teacher_matching[teacher][-1]
+                    if self.teacher_preferences[teacher][last_student] < self.teacher_preferences[teacher][student]:
+                        student_matching[last_student] = -1 # Unmatch student to be swapped out
                         teacher_matching[teacher][-1] = student # Swap last accepted student with new student
                         student_matching[student] = teacher # Store matching of new student
-            at_capacity = True
+                        teacher_matching[teacher] = self.sort_preferences(teacher_matching[teacher], self.teacher_preferences[teacher])
             exhausted = True
             all_matched = True
-            # Check if all class spots have been filled
-            for matching in teacher_matching.values():
-                if len(matching) < capacity:
-                    at_capacity = False
             # Check if students have exhausted all their proposals
-            for pending in students:
-                if len(pending) > 0:
+            for i, pending in enumerate(students):
+                if len(pending) > 0 and student_matching[i] == -1:
                     exhausted = False
             # Check if all students have been matched
             for matching in student_matching.values():
                 if matching == -1:
                     all_matched = False
+            # If more students than number of spots, keep running until all proposals made
+            if self.n > self.m * capacity:
+                condition = not exhausted
+            # Else, keep running until everyone is matched
+            else:
+                condition = not all_matched
         self.student_matching = student_matching
     
     """
@@ -239,13 +256,13 @@ class CourseMechanism:
             done = nx.number_of_nodes(self.G) == 0 
         return
 
-def var1_test(epochs=100):
+def var1_test(epochs=10):
     var1 = np.arange(1, 11)
     prob_success = []
     for v1 in tqdm(var1):
         success = 0
         for _ in range(epochs):
-            test = CourseMechanism(4,10, var1=v1)
+            test = CourseMechanism(100,10, var1=v1)
             test.generate_preferences()
             print("Running Student DA...")
             test.studentDA(10)
@@ -260,16 +277,16 @@ def var1_test(epochs=100):
     plt.ylabel("Probability that student gets their favorite class")
     plt.show()
 
-def var2_test(epochs=100):
+def var2_test(epochs=10):
     var2 = np.arange(1, 11)
     prob_success = []
     for v2 in tqdm(var2):
         success = 0
         for _ in range(epochs):
-            test = CourseMechanism(4,10, var2=v2)
+            test = CourseMechanism(100,10, var2=v2)
             test.generate_preferences()
             test.studentDA(10)
-            test.resample_preferences(bump=False)
+            test.resample_preferences(bump=True)
             test.TTC()
             success += test.prob_success()
         prob_success.append(success / epochs)
@@ -279,28 +296,55 @@ def var2_test(epochs=100):
     plt.ylabel("Probability that student gets their favorite class")
     plt.show()
     
+def deviate_test(epochs = 10):
+    prob_success = []
+    success = 0
+    for _ in range(epochs):
+        test = CourseMechanism(100,10)
+        test.generate_preferences()
+        test.studentDA(10, deviate=False)
+        test.resample_preferences(bump=True)
+        test.TTC()
+        success += test.prob_success(single=True)
+    prob_success.append(success / epochs)
+    print(prob_success)
+    prob_success = []
+    success = 0
+    for _ in range(epochs):
+        test = CourseMechanism(100,10)
+        test.generate_preferences()
+        test.studentDA(10, deviate=True)
+        test.resample_preferences(bump=True)
+        test.TTC()
+        success += test.prob_success(single=True)
+    prob_success.append(success / epochs)
+    print(prob_success)
+    # plt.plot(, prob_success)
+    # plt.xlabel("var2")
+    # plt.ylabel("Probability that student gets their favorite class")
+    # plt.show()
 
 def main():
-    test = CourseMechanism(4, 10)
+    test = CourseMechanism(100, 10)
     test.generate_preferences()
     test.studentDA(10)
     print("Running Student DA...")
-    print(test.print_student_preferences())
+    # print(test.print_student_preferences())
     print(test.student_matching)
-    print(test.prob_success())
+    # print(test.prob_success())
     
-    test.resample_preferences(bump=False)
+    test.resample_preferences(bump=True)
     test.TTC()
     print("Running TTC...")
-    print(test.print_student_preferences())
+    # print(test.print_student_preferences())
     print(test.student_matching)
-    print(test.prob_success())
+    # print(test.prob_success())
 
 if __name__ == "__main__":
-    main()
+    # main()
     # var1_test()
     # var2_test()
-                    
+    deviate_test()   
             
 
 
