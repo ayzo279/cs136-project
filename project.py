@@ -12,8 +12,8 @@ class CourseMechanism:
         self.var1 = var1 # determines how correlated first round preferences are across students
         self.var2 = var2 # determines how correlated second round preferences are with first round
 
-        self.teacher_preferences = {}
-        self.student_preferences = {}
+        self.teacher_preferences = []
+        self.student_preferences = []
         self.student_matching = {}
 
         self.TTCpref = {}
@@ -30,19 +30,25 @@ class CourseMechanism:
         # Sample student preferences from multivariate normal distribution
         means = np.random.uniform(0.0,10.0,self.m)
         cov = np.diag(np.array([self.var1] * self.m))
-        sample_prefs = np.random.multivariate_normal(means, cov)
-        self.student_preferences = [{j:sample_prefs[j] for j in range(self.m)} for _ in range(self.n)]
+        for _ in range(self.n):
+            sample_prefs = np.random.multivariate_normal(means, cov)
+            self.student_preferences.append({j:sample_prefs[j] for j in range(self.m)})
     
     """
+    Args:
+        bump: True if one class becomes popular during shopping week
     Returns:
         List of preference values for each student for each teacher
     """
-    def resample_preferences(self):
+    def resample_preferences(self, bump):
         for i, student in enumerate(self.student_preferences):
             means = np.array(list(student.values()))
             cov = np.diag(np.array([self.var2] * self.m))
-            sample_prefs = np.random.multivariate_normal(means, cov)
-            self.student_preferences[i] = {j:sample_prefs[j] for j in range(self.m)}
+            for _ in range(self.n):
+                sample_prefs = np.random.multivariate_normal(means, cov)
+                self.student_preferences[i] = {j:sample_prefs[j] for j in range(self.m)}
+                if bump:
+                    self.student_preferences[i][0] += 10
 
     """
     Args: 
@@ -56,6 +62,18 @@ class CourseMechanism:
         sorted_pref = sorted(subset_dict.items(), key=lambda x: x[1], reverse=True)
         ranked_indices = [index for index, _ in sorted_pref]
         return ranked_indices
+
+    """
+    Returns:
+        Most preferred class for every student
+    """
+    def print_student_preferences(self):
+        print_dict = {}
+        for i, student in enumerate(self.student_preferences):
+            full_preference = np.array(list(student.values()))
+            max_preference = np.argmax(full_preference)
+            print_dict[i] = max_preference
+        return print_dict
 
     """
     Returns:
@@ -219,16 +237,18 @@ class CourseMechanism:
         return
 
 
-def var1_test(epochs=10):
+def var1_test(epochs=100):
     var1 = np.arange(1, 11)
     prob_success = []
     for v1 in tqdm(var1):
         success = 0
         for _ in range(epochs):
-            test = CourseMechanism(100,15, var1=v1)
+            test = CourseMechanism(4,10, var1=v1)
             test.generate_preferences()
+            print("Running Student DA...")
             test.studentDA(10)
-            test.resample_preferences()
+            test.resample_preferences(bump=False)
+            print("Running TTC...")
             test.TTC()
             success += test.prob_success()
         prob_success.append(success / epochs)
@@ -238,16 +258,16 @@ def var1_test(epochs=10):
     plt.ylabel("Probability that student gets their favorite class")
     plt.show()
 
-def var2_test(epochs=10):
+def var2_test(epochs=100):
     var2 = np.arange(1, 11)
     prob_success = []
     for v2 in tqdm(var2):
         success = 0
         for _ in range(epochs):
-            test = CourseMechanism(100,15, var2=v2)
+            test = CourseMechanism(4,10, var2=v2)
             test.generate_preferences()
             test.studentDA(10)
-            test.resample_preferences()
+            test.resample_preferences(bump=False)
             test.TTC()
             success += test.prob_success()
         prob_success.append(success / epochs)
@@ -259,24 +279,25 @@ def var2_test(epochs=10):
     
 
 def main():
-    test = CourseMechanism(100,15)
+    test = CourseMechanism(4, 10)
     test.generate_preferences()
     test.studentDA(10)
     print("Running Student DA...")
-    # print(test.student_preferences)
+    print(test.print_student_preferences())
     print(test.student_matching)
     print(test.prob_success())
-    test.resample_preferences()
+    
+    test.resample_preferences(bump=False)
     test.TTC()
     print("Running TTC...")
-    # print(test.student_preferences)
+    print(test.print_student_preferences())
     print(test.student_matching)
     print(test.prob_success())
 
 if __name__ == "__main__":
     main()
-    var1_test()
-    var2_test()
+    # var1_test()
+    # var2_test()
                     
             
 
