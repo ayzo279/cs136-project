@@ -1,46 +1,54 @@
 import numpy as np
 import networkx as nx
 import random
+import matplotlib.pyplot as plt
+from tqdm import tqdm
 
 class CourseMechanism:
-    def __init__(self):
-        self.teacher_preferences = {}
-        self.student_preferences = {}
+    def __init__(self, n, m, var1=1, var2=1):
+        self.n = n # number of students
+        self.m = m # number of teachers
+
+        self.var1 = var1 # determines how correlated first round preferences are across students
+        self.var2 = var2 # determines how correlated second round preferences are with first round
+
+        self.teacher_preferences = []
+        self.student_preferences = []
         self.student_matching = {}
+
         self.TTCpref = {}
         self.G = nx.DiGraph()
-        self.var1 = 1
-        self.var2 = 1
+    
     """
-    Args:
-        n: number of students
-        m: number of teachers
     Returns:
-        List of randomized preference values for each student/teacher for each teacher/student
+        List of preference values for each student/teacher for each teacher/student
     """
-    def generate_preferences(self, n, m):
+    def generate_preferences(self):
         # Sample teacher preferences randomly
-        self.teacher_preferences = [{i:np.random.uniform(0.0,10.0) for i in range(n)} for _ in range(m)]
+        self.teacher_preferences = [{i:np.random.uniform(0.0,10.0) for i in range(self.n)} for _ in range(self.m)]
 
         # Sample student preferences from multivariate normal distribution
-        means = np.random.uniform(0.0,10.0,m)
-        cov = np.diag(np.array([self.var1] * m))
-        sample_prefs = np.random.multivariate_normal(means, cov)
-        self.student_preferences = [{j:sample_prefs[j] for j in range(m)} for _ in range(n)]
+        means = np.random.uniform(0.0,10.0,self.m)
+        cov = np.diag(np.array([self.var1] * self.m))
+        for _ in range(self.n):
+            sample_prefs = np.random.multivariate_normal(means, cov)
+            self.student_preferences.append({j:sample_prefs[j] for j in range(self.m)})
     
     """
     Args:
-        n: number of students
-        m: number of teachers
+        bump: True if one class becomes popular during shopping week
     Returns:
-        List of randomized preference values for each student/teacher for each teacher/student
+        List of preference values for each student for each teacher
     """
-    def resample_preferences(self, n, m):
+    def resample_preferences(self, bump):
         for i, student in enumerate(self.student_preferences):
             means = np.array(list(student.values()))
-            cov = np.diag(np.array([self.var2] * m))
-            sample_prefs = np.random.multivariate_normal(means, cov)
-            self.student_preferences[i] = {j:sample_prefs[j] for j in range(m)}
+            cov = np.diag(np.array([self.var2] * self.m))
+            for _ in range(self.n):
+                sample_prefs = np.random.multivariate_normal(means, cov)
+                self.student_preferences[i] = {j:sample_prefs[j] for j in range(self.m)}
+                if bump:
+                    self.student_preferences[i][0] += 10
 
     """
     Args: 
@@ -56,12 +64,36 @@ class CourseMechanism:
         return ranked_indices
 
     """
+    Returns:
+        Most preferred class for every student
+    """
+    def print_student_preferences(self):
+        print_dict = {}
+        for i, student in enumerate(self.student_preferences):
+            full_preference = np.array(list(student.values()))
+            max_preference = np.argmax(full_preference)
+            print_dict[i] = max_preference
+        return print_dict
+
+    """
+    Returns:
+        The probability that a student receives their most preferred matching
+    """
+    def prob_success(self):
+        successful = 0
+        for i, student in enumerate(self.student_preferences):
+            full_preference = np.array(list(student.values()))
+            max_preference = np.argmax(full_preference)
+            if max_preference == self.student_matching[i]:
+                successful += 1
+        return successful / self.n
+
+    """
     Args:
         capacity: maximum number of students allowed to each class
     Returns:
         a dictionary mapping each student to their accepted class
     """
-
     def studentDA(self, capacity):
         students = [self.sort_preferences([i for i in range(len(self.teacher_preferences))], preference) for preference in self.student_preferences]
         teacher_matching = {i:[] for i in range(len(self.teacher_preferences))}
@@ -207,19 +239,67 @@ class CourseMechanism:
             done = nx.number_of_nodes(self.G) == 0 
         return
 
-test = CourseMechanism()
-test.generate_preferences(50,100)
-test.studentDA(10)
-print("Running Student DA...")
-# print(test.student_preferences)
-print(test.student_matching)
-test.resample_preferences(50,100)
-test.TTC()
-print("Running TTC...")
-# print(test.student_preferences)
-print(test.student_matching)
+def var1_test(epochs=100):
+    var1 = np.arange(1, 11)
+    prob_success = []
+    for v1 in tqdm(var1):
+        success = 0
+        for _ in range(epochs):
+            test = CourseMechanism(4,10, var1=v1)
+            test.generate_preferences()
+            print("Running Student DA...")
+            test.studentDA(10)
+            test.resample_preferences(bump=False)
+            print("Running TTC...")
+            test.TTC()
+            success += test.prob_success()
+        prob_success.append(success / epochs)
+    
+    plt.plot(var1, prob_success)
+    plt.xlabel("var1")
+    plt.ylabel("Probability that student gets their favorite class")
+    plt.show()
 
+def var2_test(epochs=100):
+    var2 = np.arange(1, 11)
+    prob_success = []
+    for v2 in tqdm(var2):
+        success = 0
+        for _ in range(epochs):
+            test = CourseMechanism(4,10, var2=v2)
+            test.generate_preferences()
+            test.studentDA(10)
+            test.resample_preferences(bump=False)
+            test.TTC()
+            success += test.prob_success()
+        prob_success.append(success / epochs)
+    
+    plt.plot(var2, prob_success)
+    plt.xlabel("var2")
+    plt.ylabel("Probability that student gets their favorite class")
+    plt.show()
+    
 
+def main():
+    test = CourseMechanism(4, 10)
+    test.generate_preferences()
+    test.studentDA(10)
+    print("Running Student DA...")
+    print(test.print_student_preferences())
+    print(test.student_matching)
+    print(test.prob_success())
+    
+    test.resample_preferences(bump=False)
+    test.TTC()
+    print("Running TTC...")
+    print(test.print_student_preferences())
+    print(test.student_matching)
+    print(test.prob_success())
+
+if __name__ == "__main__":
+    main()
+    # var1_test()
+    # var2_test()
                     
             
 
