@@ -268,20 +268,24 @@ def enumerate_reassign(match1, match2):
 
 def reassign_test(epochs=200, var1=1, var2=1):
     total = 0
-    teacher_pref = []
+    student_pref = []
+    match1 = {}
     for i in range(epochs):
-        test = CourseMechanism(100, 20, var1=var1, var2=var2)
-        test.generate_preferences()
         if i == 0:
-            teacher_pref = test.teacher_preferences
-        test.teacher_preferences = teacher_pref
-        test.studentDA(10)
-        match1 = test.student_matching.copy()
-        # test.resample_preferences(bump=False)
+            test = CourseMechanism(100, 20, var1=var1, var2=var2)
+            test.generate_preferences()
+            student_pref = test.student_preferences.copy()
+            test.studentDA(10)
+            match1 = test.student_matching.copy()
+        test.student_preferences = student_pref.copy()
+        test.student_matching = match1.copy()
+        test.resample_preferences(bump=False)
         test.TTC()
-        match2 = test.student_matching.copy()
+        match2 = test.student_matching
         total += enumerate_reassign(match1, match2)
     return total/epochs
+
+
 
 def var1_test(epochs=10):
     var1 = np.arange(1, 11)
@@ -388,13 +392,36 @@ if __name__ == "__main__":
     # var1_test()
     # var2_test()
     # deviate_test(var1=1, var2=1)
-    mat = np.zeros((10,10))
-    count = 0
-    for i, var1 in enumerate(range(1,101, 10)):
-        for j, var2 in enumerate(range(1, 101, 10)):
-            count += 1
-            print(count)
-            mat[j][i] = reassign_test(var1 = var1, var2 = var2)
+    # mat = np.zeros((10,10))
+    # count = 0
+    # for i, var1 in enumerate(range(1,101, 10)):
+    #     for j, var2 in enumerate(range(1, 101, 10)):
+    #         count += 1
+    #         print(count)
+    #         mat[j][i] = reassign_test(var1 = var1, var2 = var2)
+    
+    student_pref = []
+    match1 = []
+    for _ in range(200):
+        test = CourseMechanism(100, 20, var1=1, var2=1)
+        test.generate_preferences()
+        test.studentDA(10)
+        student_pref.append(test.student_preferences)
+        match1.append(test.student_matching)
+
+    lst = []
+    for v in tqdm(range(1, 101, 10)):
+        total = 0
+        for i in range(200):
+            test.var2 = v
+            test.student_preferences = student_pref[i]
+            test.student_matching = match1[i]
+            test.resample_preferences(bump=True)
+            test.TTC()
+            total += enumerate_reassign(match1, test.student_matching)
+        lst.append(total / 200)
+    plt.plot(range(1,101,10), lst)
+    plt.show()
     
     # mat = np.zeros((10,10))
     # for i, var1 in enumerate(range(1,101, 10)):
@@ -402,11 +429,11 @@ if __name__ == "__main__":
     #         print(f"{i * j + j}/{100}")
     #         mat[j][i] = deviate_test(var1 = var1, var2 = var2)
         
-    matplot = plt.matshow(mat)
-    plt.xlabel("var1")
-    plt.ylabel("var2")
-    plt.colorbar(matplot)
-    plt.show()
+    # matplot = plt.matshow(mat)
+    # plt.xlabel("var1")
+    # plt.ylabel("var2")
+    # plt.colorbar(matplot)
+    # plt.show()
     # deviate_test()
     
 
