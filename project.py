@@ -285,7 +285,29 @@ def reassign_test(epochs=200, var1=1, var2=1):
         total += enumerate_reassign(match1, match2)
     return total/epochs
 
-
+def exp_reassign(epochs=400):
+    preferences = []
+    test = CourseMechanism(100, 20)
+    matchings = []
+    # for _ in range(epochs):
+    test.generate_preferences()
+    preferences = test.student_preferences.copy()
+    test.studentDA(10)
+    matchings = test.student_matching.copy()
+    avg = []
+    for i in range(1, 101, 10):
+        num = 0
+        for j in range(epochs):
+            test.var2 = i
+            test.student_matching = matchings.copy()
+            test.student_preferences = preferences.copy()
+            test.resample_preferences()
+            test.TTC()
+            num += enumerate_reassign(matchings, test.student_matching)
+        avg.append(num / epochs)
+    plt.plot(range(1,101,10), avg)
+    plt.show()
+        
 
 def var1_test(epochs=10):
     var1 = np.arange(1, 11)
@@ -399,29 +421,31 @@ if __name__ == "__main__":
     #         count += 1
     #         print(count)
     #         mat[j][i] = reassign_test(var1 = var1, var2 = var2)
-    
-    student_pref = []
-    match1 = []
-    for _ in range(200):
-        test = CourseMechanism(100, 20, var1=1, var2=1)
-        test.generate_preferences()
-        test.studentDA(10)
-        student_pref.append(test.student_preferences)
-        match1.append(test.student_matching)
+    exp_reassign()
 
-    lst = []
-    for v in tqdm(range(1, 101, 10)):
-        total = 0
-        for i in range(200):
-            test.var2 = v
-            test.student_preferences = student_pref[i]
-            test.student_matching = match1[i]
-            test.resample_preferences(bump=True)
-            test.TTC()
-            total += enumerate_reassign(match1, test.student_matching)
-        lst.append(total / 200)
-    plt.plot(range(1,101,10), lst)
-    plt.show()
+
+    # student_pref = []
+    # match1 = []
+    # for _ in range(200):
+    #     test = CourseMechanism(100, 20, var1=1, var2=1)
+    #     test.generate_preferences()
+    #     test.studentDA(10)
+    #     student_pref.append(test.student_preferences)
+    #     match1.append(test.student_matching)
+
+    # lst = []
+    # for v in tqdm(range(1, 101, 10)):
+    #     total = 0
+    #     for i in range(200):
+    #         test.var2 = v
+    #         test.student_preferences = student_pref[i]
+    #         test.student_matching = match1[i]
+    #         test.resample_preferences(bump=True)
+    #         test.TTC()
+    #         total += enumerate_reassign(match1, test.student_matching)
+    #     lst.append(total / 200)
+    # plt.plot(range(1,101,10), lst)
+    # plt.show()
     
     # mat = np.zeros((10,10))
     # for i, var1 in enumerate(range(1,101, 10)):
