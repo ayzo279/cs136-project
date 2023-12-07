@@ -113,7 +113,7 @@ class CourseMechanism:
         condition = True
         while condition:
             for i in range(self.m):
-                assert(len(teacher_matching) <= capacity)
+                assert(len(teacher_matching[i]) <= capacity)
             to_check = {} # Dict of teachers to check for each n student, -1 implies no proposal was made this round
             # Make proposals for unmatched students
             for i, ranking in enumerate(students):
@@ -311,15 +311,11 @@ def deviate_test(epochs = 100):
         test.studentDA(10, deviate=False)
         nodev_matching = test.student_matching.copy()
 
-        test.student_preferences = student_prefs
-        test.teacher_preferences = teacher_prefs
         test.student_matching = {}
         test.studentDA(10, deviate=True)
         dev_matching = test.student_matching
 
         test.student_matching = nodev_matching
-        test.student_preferences = student_prefs
-        test.teacher_preferences = teacher_prefs
         test.resample_preferences(bump=True)
         test.TTC()
         nodev_success += test.prob_success(single=True)
@@ -349,7 +345,7 @@ def var_test(v1, v2, epochs=100):
 
 
 def main():
-    test = CourseMechanism(100, 10)
+    test = CourseMechanism(100, 20)
     test.generate_preferences()
     test.studentDA(10)
     print("Running Student DA...")
