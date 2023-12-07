@@ -27,7 +27,8 @@ class CourseMechanism:
         # Sample teacher preferences randomly
         self.teacher_preferences = [{i:np.random.uniform(0.0,10.0) for i in range(self.n)} for _ in range(self.m)]
         # Sample student preferences from multivariate normal distribution
-        means = np.random.uniform(0.0,10.0,self.m)
+        means = np.linspace(0.0, 10.0, self.m)
+        # np.random.uniform(0.0,10.0,self.m)
         cov = np.diag(np.array([self.var1] * self.m))
         for _ in range(self.n):
             sample_prefs = np.random.multivariate_normal(means, cov)
@@ -39,14 +40,16 @@ class CourseMechanism:
     Returns:
         List of preference values for each student for each teacher
     """
-    def resample_preferences(self, bump):
+    def resample_preferences(self, bump=False):
         for i, student in enumerate(self.student_preferences):
             means = np.array(list(student.values()))
+            if bump and i > 0:
+                means[0] *= 2
             cov = np.diag(np.array([self.var2] * self.m))
             sample_prefs = np.random.multivariate_normal(means, cov)
             self.student_preferences[i] = {j:sample_prefs[j] for j in range(self.m)}
-            if bump and i > 50:
-                self.student_preferences[i][0] += 10
+            # if bump and i > 0:
+            #     self.student_preferences[i][0] += np.random.uniform(0, 10)
 
     """
     Args: 
@@ -256,13 +259,37 @@ class CourseMechanism:
             done = nx.number_of_nodes(self.G) == 0 
         return
 
+def enumerate_reassign(match1, match2):
+    reassigned = 0
+    for i in range(len(match1)):
+        if match1[i] != match2[i]:
+            reassigned += 1
+    return reassigned
+
+def reassign_test(epochs=200, var1=1, var2=1):
+    total = 0
+    teacher_pref = []
+    for i in range(epochs):
+        test = CourseMechanism(100, 20, var1=var1, var2=var2)
+        test.generate_preferences()
+        if i == 0:
+            teacher_pref = test.teacher_preferences
+        test.teacher_preferences = teacher_pref
+        test.studentDA(10)
+        match1 = test.student_matching.copy()
+        # test.resample_preferences(bump=False)
+        test.TTC()
+        match2 = test.student_matching.copy()
+        total += enumerate_reassign(match1, match2)
+    return total/epochs
+
 def var1_test(epochs=10):
     var1 = np.arange(1, 11)
     prob_success = []
     for v1 in tqdm(var1):
         success = 0
         for _ in range(epochs):
-            test = CourseMechanism(100,10, var1=v1)
+            test = CourseMechanism(100,20, var1=v1)
             test.generate_preferences()
             print("Running Student DA...")
             test.studentDA(10)
@@ -297,17 +324,17 @@ def var2_test(epochs=10):
     plt.show()
     
 
-def deviate_test(epochs = 100):
+def deviate_test(epochs = 100, var1=1, var2=1):
     nodev_success = 0
     dev_success = 0
 
     for _ in range(epochs):
-        test = CourseMechanism(100,20)
+        test = CourseMechanism(100,20,var1=var1, var2=var2)
 
         test.generate_preferences()
         student_prefs = test.student_preferences.copy()
         test.studentDA(10, deviate=False)
-        test.resample_preferences(bump=True)
+        test.resample_preferences(bump=False)
         resample_prefs = test.student_preferences.copy()
         test.TTC()
         nodev_success += test.prob_success(single=True)
@@ -317,9 +344,14 @@ def deviate_test(epochs = 100):
         test.student_preferences = resample_prefs
         test.TTC()
         dev_success += test.prob_success(single=True)
+    
+    # print(f"No deviation: {nodev_success/epochs}")
+    # print(f"Deviation: {dev_success/epochs}")
+    return dev_success/nodev_success
+    print(f"Usefulness ratio: {dev_success/nodev_success}, Difference:{dev_success/epochs - nodev_success/epochs}")
 
-    print(f"No deviation: {nodev_success/epochs}")
-    print(f"Deviation: {dev_success/epochs}")
+
+
 
 
 def var_test(v1, v2, epochs=100):
@@ -355,7 +387,28 @@ if __name__ == "__main__":
     # main()
     # var1_test()
     # var2_test()
-    deviate_test()
+    # deviate_test(var1=1, var2=1)
+    mat = np.zeros((10,10))
+    count = 0
+    for i, var1 in enumerate(range(1,101, 10)):
+        for j, var2 in enumerate(range(1, 101, 10)):
+            count += 1
+            print(count)
+            mat[j][i] = reassign_test(var1 = var1, var2 = var2)
+    
+    # mat = np.zeros((10,10))
+    # for i, var1 in enumerate(range(1,101, 10)):
+    #     for j, var2 in enumerate(range(1, 101, 10)):
+    #         print(f"{i * j + j}/{100}")
+    #         mat[j][i] = deviate_test(var1 = var1, var2 = var2)
+        
+    matplot = plt.matshow(mat)
+    plt.xlabel("var1")
+    plt.ylabel("var2")
+    plt.colorbar(matplot)
+    plt.show()
+    # deviate_test()
+    
 
     # # Variance test for entire population
     # var1 = (1,10)
