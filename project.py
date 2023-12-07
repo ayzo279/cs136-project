@@ -8,9 +8,20 @@ from tqdm import tqdm
 STUDENTS = 100
 TEACHERS = 15
 CAPACITY = 10
-EPOCHS = 200
+EPOCHS = 500
 
-def deviate_test(epochs = EPOCHS, var1=1, var2=1, alpha=5):
+def success_test(epochs = EPOCHS, var1=1, var2=1):
+    success = 0
+    for _ in range(EPOCHS):
+        test = CourseMechanism(STUDENTS, TEACHERS, var1=var1, var2=var2)
+        test.generate_preferences()
+        test.studentDA(CAPACITY, deviate=False)
+        test.resample_preferences(bump=False)
+        test.TTC()
+        success += test.prob_success(single = True)
+    return success/EPOCHS
+
+def deviate_test(epochs = EPOCHS, var1=1, var2=1, alpha=1, p=1):
     nodev_success = 0
     dev_success = 0
 
@@ -20,7 +31,7 @@ def deviate_test(epochs = EPOCHS, var1=1, var2=1, alpha=5):
         test.generate_preferences()
         student_prefs = test.student_preferences.copy()
         test.studentDA(CAPACITY, deviate=False)
-        test.resample_preferences(bump=True)
+        test.resample_preferences(bump=True, p=p)
         resample_prefs = test.student_preferences.copy()
         test.TTC()
         nodev_success += test.prob_success(single=True)
@@ -163,30 +174,52 @@ def main():
     # print(test.prob_success())
 
 if __name__ == "__main__":
-    # var_range = range(1, 111, 10)
-    # lst = []
-    # for var1 in tqdm(var_range):
-    #     lst.append(deviate_test(var1=var1))
+    var_range = range(1, 111, 10)
+    lst = []
+    for var1 in tqdm(var_range):
+        lst.append(success_test(var1=var1))
     
-    # plt.plot(var_range, lst, color="forestgreen")
+    plt.plot(var_range, lst, color="forestgreen")
+    plt.title("Success Probability")
+    plt.xlabel(r"$\sigma_1^2$")
+    plt.ylabel("P(Success)")
+    plt.tight_layout()
+    plt.show()
+
+
+    # alpha_range = np.linspace(0.0, 2.0, 20)
+    # prange = np.linspace(0.0, 1.0, 10)
+    # lst = []
+    # for p in tqdm(prange):
+    #     lst.append(deviate_test(p=p))
+    
+    # plt.plot(prange, lst, color="forestgreen")
     # plt.title("Usefulness of Deviation")
-    # plt.xlabel(r"$\sigma_1^2$")
+    # plt.xlabel(r"$\alpha$")
     # plt.ylabel("Usefulness")
     # plt.tight_layout()
     # plt.show()
 
+    # var_range1 = np.linspace(0.0, 1.0, 10)
+    # var_range2 = np.linspace(0.0, 2.0, 10)
+    # mat = np.zeros((10,10))
+    # for i, var1 in enumerate(tqdm(var_range1)):
+    #     for j, var2 in enumerate(var_range2):
+    #         mat[j][i] = deviate_test(p=var1, alpha=var2)
 
-    alpha_range = np.linspace(0.0, 2.0, 20)
-    lst = []
-    for a in tqdm(alpha_range):
-        lst.append(deviate_test(alpha=a))
-    
-    plt.plot(alpha_range, lst, color="forestgreen")
-    plt.title("Usefulness of Deviation")
-    plt.xlabel(r"$\alpha$")
-    plt.ylabel("Usefulness")
-    plt.tight_layout()
-    plt.show()
+    # matplot = plt.matshow(mat, cmap="RdYlGn")
+    # plt.xlabel("p")
+    # plt.ylabel(r"$\alpha$")
+    # plt.title("Usefulness of Deviation")
+    # plt.colorbar(matplot)
+    # ax = plt.gca()
+    # ax.xaxis.set_ticks_position('bottom')  # Set tick position
+    # ax.xaxis.set_label_position('bottom')  # Set label position
+    # ax.invert_yaxis()
+    # plt.xticks(np.arange(0, 10, 1), np.round(var_range1, 1))
+    # plt.yticks(np.arange(0, 10, 1), np.round(var_range2,1))
+    # plt.show()
+
 
     # mat = np.zeros((11,11))
     # for i, var1 in enumerate(tqdm(var_range)):
@@ -217,6 +250,8 @@ if __name__ == "__main__":
     # plt.xticks(np.arange(0, 11, 1), var_range)
     # plt.yticks(np.arange(0, 11, 1), var_range)
     # plt.show()
+
+    
 
 
 
