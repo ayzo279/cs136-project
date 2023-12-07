@@ -38,17 +38,19 @@ class CourseMechanism:
     """
     Args:
         bump: True if one class becomes popular during shopping week
+        p: proportion of students who receive a bump
     Returns:
         List of preference values for each student for each teacher
     """
-    def resample_preferences(self, bump=False):
+    def resample_preferences(self, bump=False, p=1):
         for i, student in enumerate(self.student_preferences):
             means = np.array(list(student.values()))
             cov = np.diag(np.array([self.var2] * self.m))
             sample_prefs = np.random.multivariate_normal(means, cov)
             self.student_preferences[i] = {j:sample_prefs[j] for j in range(self.m)}
             if bump and i > 0:
-                self.student_preferences[i][0] += self.alpha * abs(self.student_preferences[i][0])
+                if random.random() < p:
+                    self.student_preferences[i][0] += self.alpha * abs(self.student_preferences[i][0])
 
     """
     Args: 
