@@ -27,9 +27,9 @@ class CourseMechanism:
     """
     def generate_preferences(self):
         # Sample teacher preferences randomly
-        self.teacher_preferences = [{i:np.random.uniform(0.0,10.0) for i in range(self.n)} for _ in range(self.m)]
+        self.teacher_preferences = [{i:np.random.uniform(0.0, 10.0) for i in range(self.n)} for _ in range(self.m)]
         # Sample student preferences from multivariate normal distribution
-        means = np.random.uniform(0.0,10.0,self.m)
+        means = np.random.uniform(0.0, 10.0, self.m)
         cov = np.diag(np.array([self.var1] * self.m))
         for _ in range(self.n):
             sample_prefs = np.random.multivariate_normal(means, cov)

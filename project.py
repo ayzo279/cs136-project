@@ -163,12 +163,23 @@ def main():
     # print(test.prob_success())
 
 if __name__ == "__main__":
-    var_range = range(1, 211, 10)
+    var_range = range(1, 111, 10)
     
-    mat = np.zeros((21,21))
-    for i, var1 in enumerate(tqdm(var_range)):
-        for j, var2 in enumerate(var_range):
-            mat[j][i] = deviate_test(var1=var1, var2=var2)
+    lst = []
+    for var1 in tqdm(var_range):
+        lst.append(deviate_test(var1=var1))
+    
+    plt.plot(var_range, lst, color="forestgreen")
+    plt.title("Usefulness of Deviation")
+    plt.xlabel(r"$\sigma_1^2$")
+    plt.ylabel("Usefulness")
+    plt.tight_layout()
+    plt.show()
+
+    # mat = np.zeros((11,11))
+    # for i, var1 in enumerate(tqdm(var_range)):
+    #     for j, var2 in enumerate(var_range):
+    #         mat[j][i] = deviate_test(var1=var1, var2=var2)
 
     # matplot = plt.matshow(mat, cmap="summer_r")
     # plt.xlabel(r"$\sigma_1^2$")
@@ -196,14 +207,6 @@ if __name__ == "__main__":
     # plt.show()
 
 
-    some_var_range = range(1, 211, 20)
-    for i, var in enumerate(some_var_range):
-        plt.plot(var_range, mat[:, 2*i], label=rf"$\sigma_1^2={var}$")
-    plt.xlabel(r"$\sigma_2^2$")
-    plt.ylabel("Usefulness")
-    plt.title("Usefulness of Deviation")
-    plt.legend()
-    plt.show()
 
     # main()
     # var1_test()
