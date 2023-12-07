@@ -306,27 +306,18 @@ def deviate_test(epochs = 100):
 
         test.generate_preferences()
         student_prefs = test.student_preferences.copy()
-        teacher_prefs = test.teacher_preferences.copy()
-
         test.studentDA(10, deviate=False)
-        nodev_matching = test.student_matching.copy()
-
-        test.student_matching = {}
-        test.studentDA(10, deviate=True)
-        dev_matching = test.student_matching
-
-        test.student_matching = nodev_matching
         test.resample_preferences(bump=True)
+        resample_prefs = test.student_preferences.copy()
         test.TTC()
         nodev_success += test.prob_success(single=True)
-
-        test.student_matching = dev_matching
+        
         test.student_preferences = student_prefs
-        test.teacher_preferences = teacher_prefs
-        test.resample_preferences(bump=True)
+        test.studentDA(10, deviate=True)
+        test.student_preferences = resample_prefs
         test.TTC()
         dev_success += test.prob_success(single=True)
-    
+
     print(f"No deviation: {nodev_success/epochs}")
     print(f"Deviation: {dev_success/epochs}")
 
@@ -364,15 +355,15 @@ if __name__ == "__main__":
     # main()
     # var1_test()
     # var2_test()
-    # deviate_test()
+    deviate_test()
 
-    # Variance test for entire population
-    var1 = (1,10)
-    var2 = (1,10) 
-    print(f"v1={var1[0]}, v2={var2[0]}: {var_test(v1=var1[0], v2=var2[0])}")
-    print(f"v1={var1[1]}, v2={var2[0]}: {var_test(v1=var1[1], v2=var2[0])}")
-    print(f"v1={var1[0]}, v2={var2[1]}: {var_test(v1=var1[0], v2=var2[1])}")
-    print(f"v1={var1[1]}, v2={var2[1]}: {var_test(v1=var1[1], v2=var2[1])}")
+    # # Variance test for entire population
+    # var1 = (1,10)
+    # var2 = (1,10) 
+    # print(f"v1={var1[0]}, v2={var2[0]}: {var_test(v1=var1[0], v2=var2[0])}")
+    # print(f"v1={var1[1]}, v2={var2[0]}: {var_test(v1=var1[1], v2=var2[0])}")
+    # print(f"v1={var1[0]}, v2={var2[1]}: {var_test(v1=var1[0], v2=var2[1])}")
+    # print(f"v1={var1[1]}, v2={var2[1]}: {var_test(v1=var1[1], v2=var2[1])}")
 
     # Variance test for an agent that deviates / does not deviate
     # TODO
