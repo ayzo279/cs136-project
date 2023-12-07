@@ -10,12 +10,12 @@ TEACHERS = 15
 CAPACITY = 10
 EPOCHS = 200
 
-def deviate_test(epochs = EPOCHS, var1=1, var2=1):
+def deviate_test(epochs = EPOCHS, var1=1, var2=1, alpha=5):
     nodev_success = 0
     dev_success = 0
 
     for _ in range(epochs):
-        test = CourseMechanism(STUDENTS, TEACHERS, var1=var1, var2=var2)
+        test = CourseMechanism(STUDENTS, TEACHERS, var1=var1, var2=var2, alpha=alpha)
 
         test.generate_preferences()
         student_prefs = test.student_preferences.copy()
@@ -163,15 +163,27 @@ def main():
     # print(test.prob_success())
 
 if __name__ == "__main__":
-    var_range = range(1, 111, 10)
+    # var_range = range(1, 111, 10)
+    # lst = []
+    # for var1 in tqdm(var_range):
+    #     lst.append(deviate_test(var1=var1))
     
+    # plt.plot(var_range, lst, color="forestgreen")
+    # plt.title("Usefulness of Deviation")
+    # plt.xlabel(r"$\sigma_1^2$")
+    # plt.ylabel("Usefulness")
+    # plt.tight_layout()
+    # plt.show()
+
+
+    alpha_range = np.linspace(0.0, 2.0, 20)
     lst = []
-    for var1 in tqdm(var_range):
-        lst.append(deviate_test(var1=var1))
+    for a in tqdm(alpha_range):
+        lst.append(deviate_test(alpha=a))
     
-    plt.plot(var_range, lst, color="forestgreen")
+    plt.plot(alpha_range, lst, color="forestgreen")
     plt.title("Usefulness of Deviation")
-    plt.xlabel(r"$\sigma_1^2$")
+    plt.xlabel(r"$\alpha$")
     plt.ylabel("Usefulness")
     plt.tight_layout()
     plt.show()

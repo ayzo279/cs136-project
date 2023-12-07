@@ -5,7 +5,7 @@ import matplotlib.pyplot as plt
 from tqdm import tqdm
 
 class CourseMechanism:
-    def __init__(self, n, m, var1=1, var2=1, alpha=5):
+    def __init__(self, n, m, var1=1, var2=1, alpha=1):
         self.n = n # number of students
         self.m = m # number of teachers
 
@@ -48,7 +48,7 @@ class CourseMechanism:
             sample_prefs = np.random.multivariate_normal(means, cov)
             self.student_preferences[i] = {j:sample_prefs[j] for j in range(self.m)}
             if bump and i > 0:
-                self.student_preferences[i][0] += self.alpha
+                self.student_preferences[i][0] += self.alpha * abs(self.student_preferences[i][0])
 
     """
     Args: 
