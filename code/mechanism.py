@@ -100,6 +100,7 @@ class CourseMechanism:
     """
     Args:
         capacity: maximum number of students allowed to each class
+        deviate: true if agent 0 should deviate
     Returns:
         a dictionary mapping each student to their accepted class
     """

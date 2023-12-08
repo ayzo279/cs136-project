@@ -21,7 +21,7 @@ def success_test(epochs = EPOCHS, var1=1, var2=1):
         success += test.prob_success(single = True)
     return success/EPOCHS
 
-def deviate_test(epochs = EPOCHS, var1=1, var2=1, alpha=1):
+def deviate_test(epochs = EPOCHS, var1=1, var2=1, alpha=1, p=1):
     """
     Calculate the usefuleness of deviation with different parameters
     """
@@ -115,6 +115,7 @@ if __name__ == "__main__":
     # Experiments and plots
     var_range = range(1, 111, 10)
     alpha_range = np.linspace(0.0, 2.0, 11)
+    p_range =np.linspace(0.0, 1.0, 10)
 
     # Varying var1
     lst = []
@@ -172,16 +173,23 @@ if __name__ == "__main__":
     plt.yticks(np.arange(0, 11, 1), np.round(alpha_range,1))
     plt.show()
 
-    matplot = plt.matshow((mat > 1.0), cmap="Greens")
-    plt.xlabel(r"$\sigma_1^2$")
-    plt.ylabel(r"$\alpha$")
-    plt.title("Usefulness of Deviation > 1")
+    # Heat maps of usefulness, varying alpha and p (given pre-set var2)
+    mat = np.zeros((10,11))
+    for i, a in enumerate(tqdm(alpha_range)):
+        for j, p in enumerate(p_range):
+            mat[j][i] = deviate_test(alpha=a, p=p)
+
+    matplot = plt.matshow(mat, cmap="RdYlGn")
+    plt.xlabel(r"$\alpha$")
+    plt.ylabel("p")
+    plt.title("Usefulness")
+    plt.xticks(np.arange(0, 11, 1), np.round(alpha_range, 1))
+    plt.yticks(np.arange(0, 10, 1),  np.round(p_range, 1))
+    plt.colorbar(matplot)
     ax = plt.gca()
     ax.xaxis.set_ticks_position('bottom')  # Set tick position
     ax.xaxis.set_label_position('bottom')  # Set label position
     ax.invert_yaxis()
-    plt.xticks(np.arange(0, 11, 1), var_range)
-    plt.yticks(np.arange(0, 11, 1), np.round(alpha_range,1))
     plt.show()
             
 
