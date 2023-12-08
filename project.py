@@ -12,7 +12,7 @@ EPOCHS = 500
 
 def success_test(epochs = EPOCHS, var1=1, var2=1):
     success = 0
-    for _ in range(EPOCHS):
+    for _ in range(epochs):
         test = CourseMechanism(STUDENTS, TEACHERS, var1=var1, var2=var2)
         test.generate_preferences()
         test.studentDA(CAPACITY, deviate=False)
